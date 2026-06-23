@@ -1,0 +1,90 @@
+name: build-ksunext-susfs
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
+
+      - uses: actions/checkout@v4
+        with:
+          ref: OneUI
+          submodules: recursive
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison flex libssl-dev libelf-dev build-essential \
+            python3 python-is-python3 rsync cpio kmod lz4 zip unzip wget git ccache \
+            device-tree-compiler llvm lld clang \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
+            binutils-aarch64-linux-gnu binutils-arm-linux-gnueabi
+
+      - name: Enable manual-hook + SuSFS in x1q.config
+        run: |
+          CFG=arch/arm64/configs/vendor/samsung/x1q.config
+          cat >> "$CFG" <<'EOF'
+
+# ==== KSU-Next manual hooks + SuSFS (mxm) ====
+CONFIG_KSU=y
+# CONFIG_KSU_WITH_KPROBES is not set
+CONFIG_KSU_SUSFS=y
+CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+CONFIG_KSU_SUSFS_SUS_PATH=y
+CONFIG_KSU_SUSFS_SUS_MOUNT=y
+CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
+CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+CONFIG_KSU_SUSFS_SUS_KSTAT=y
+CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
+CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+CONFIG_KSU_SUSFS_ENABLE_LOG=y
+CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+CONFIG_LOCALVERSION="-x1q-ksunext-susfs"
+EOF
+          echo "=== tail x1q.config ==="; tail -25 "$CFG"
+
+      - name: Fix x1q.sh hardcoded paths
+        run: |
+          sed -i 's#/home/skye/bomb/##g' x1q.sh
+          echo "=== x1q.sh (paths) ==="; grep -nE 'make O=|out/|AnyKernel3|zip|rm -rf' x1q.sh
+          chmod +x x1q.sh
+
+      - name: Build kernel
+        run: |
+          set -o pipefail
+          bash x1q.sh all 2>&1 | tee build.log
+
+      - name: List outputs
+        if: always()
+        run: |
+          echo "=== AnyKernel3 ==="; ls -la AnyKernel3 2>/dev/null || true
+          echo "=== out/arch/arm64/boot ==="; ls -la out/arch/arm64/boot 2>/dev/null || true
+          echo "=== Image susfs/ksu strings ==="
+          strings out/arch/arm64/boot/Image 2>/dev/null | grep -m1 -iE 'susfs' || echo "(no plain susfs string)"
+
+      - name: Upload kernel
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: x1q-ksunext-susfs
+          path: |
+            AnyKernel3/*.zip
+            AnyKernel3/Image
+            build.log
+          if-no-files-found: warn
+          retention-days: 14
