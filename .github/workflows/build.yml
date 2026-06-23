@@ -35,27 +35,27 @@ jobs:
       - name: Enable manual-hook + SuSFS in x1q.config
         run: |
           CFG=arch/arm64/configs/vendor/samsung/x1q.config
-          cat >> "$CFG" <<'EOF'
-
-# ==== KSU-Next manual hooks + SuSFS (mxm) ====
-CONFIG_KSU=y
-# CONFIG_KSU_WITH_KPROBES is not set
-CONFIG_KSU_SUSFS=y
-CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
-CONFIG_KSU_SUSFS_SUS_PATH=y
-CONFIG_KSU_SUSFS_SUS_MOUNT=y
-CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
-CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
-CONFIG_KSU_SUSFS_SUS_KSTAT=y
-CONFIG_KSU_SUSFS_TRY_UMOUNT=y
-CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
-CONFIG_KSU_SUSFS_SPOOF_UNAME=y
-CONFIG_KSU_SUSFS_ENABLE_LOG=y
-CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
-CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
-CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-CONFIG_LOCALVERSION="-x1q-ksunext-susfs"
-EOF
+          {
+            echo ''
+            echo '# ==== KSU-Next manual hooks + SuSFS (mxm) ===='
+            echo 'CONFIG_KSU=y'
+            echo '# CONFIG_KSU_WITH_KPROBES is not set'
+            echo 'CONFIG_KSU_SUSFS=y'
+            echo 'CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y'
+            echo 'CONFIG_KSU_SUSFS_SUS_PATH=y'
+            echo 'CONFIG_KSU_SUSFS_SUS_MOUNT=y'
+            echo 'CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y'
+            echo 'CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y'
+            echo 'CONFIG_KSU_SUSFS_SUS_KSTAT=y'
+            echo 'CONFIG_KSU_SUSFS_TRY_UMOUNT=y'
+            echo 'CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y'
+            echo 'CONFIG_KSU_SUSFS_SPOOF_UNAME=y'
+            echo 'CONFIG_KSU_SUSFS_ENABLE_LOG=y'
+            echo 'CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y'
+            echo 'CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y'
+            echo 'CONFIG_KSU_SUSFS_OPEN_REDIRECT=y'
+            echo 'CONFIG_LOCALVERSION="-x1q-ksunext-susfs"'
+          } >> "$CFG"
           echo "=== tail x1q.config ==="; tail -25 "$CFG"
 
       - name: Fix x1q.sh hardcoded paths
@@ -74,7 +74,7 @@ EOF
         run: |
           echo "=== AnyKernel3 ==="; ls -la AnyKernel3 2>/dev/null || true
           echo "=== out/arch/arm64/boot ==="; ls -la out/arch/arm64/boot 2>/dev/null || true
-          echo "=== Image susfs/ksu strings ==="
+          echo "=== Image susfs strings ==="
           strings out/arch/arm64/boot/Image 2>/dev/null | grep -m1 -iE 'susfs' || echo "(no plain susfs string)"
 
       - name: Upload kernel
