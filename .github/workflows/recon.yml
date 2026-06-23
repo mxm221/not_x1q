@@ -1,0 +1,54 @@
+name: recon
+on:
+  workflow_dispatch:
+jobs:
+  recon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: OneUI
+          submodules: recursive
+      - name: Find KSU integration
+        run: |
+          echo "===== kernelsu-ish files ====="
+          find . -path ./.git -prune -o -iname '*kernelsu*' -print 2>/dev/null | head -60
+          echo "===== KSU dirs ====="
+          find . -path ./.git -prune -o -type d -iname 'kernelsu*' -print 2>/dev/null | head
+          echo "===== KSU core source files ====="
+          find . -path ./.git -prune -o -name 'core_hook.c' -print -o -name 'ksud.c' -print -o -name 'sucompat.c' -print -o -name 'apk_sign.c' -print 2>/dev/null | head -20
+          echo "===== 'config KSU' Kconfig def ====="
+          grep -rn --include=Kconfig 'config KSU' . 2>/dev/null | head
+          echo "===== Kconfig source lines ksu/KernelSU ====="
+          grep -rni --include=Kconfig 'kernelsu' . 2>/dev/null | head -20
+          echo "===== Makefile wiring KSU ====="
+          grep -rni --include=Makefile 'kernelsu' . 2>/dev/null | head -20
+      - name: Hooks and susfs
+        run: |
+          echo "===== manual hook sites ====="
+          grep -rn 'ksu_handle_' fs/ kernel/ drivers/input/ security/ 2>/dev/null | head -40
+          echo "===== is_zygote / manager refs ====="
+          grep -rn 'is_zygote\|ksu_is_manager' fs/ kernel/ 2>/dev/null | head -10
+          echo "===== susfs presence ====="
+          grep -rni 'susfs' . --include=*.c --include=*.h --include=Kconfig 2>/dev/null | head -20
+      - name: KSU version + tree
+        run: |
+          D=$(find . -type d -iname 'kernelsu' 2>/dev/null | head -1)
+          echo "KSU dir: $D"
+          if [ -n "$D" ]; then
+            echo "--- ls $D ---"; ls -la "$D"
+            echo "--- ls $D/kernel ---"; ls -la "$D/kernel" 2>/dev/null | head -40
+            echo "--- Kbuild/Makefile ---"; cat "$D/kernel/Kbuild" 2>/dev/null || cat "$D/kernel/Makefile" 2>/dev/null
+            echo "--- version grep ---"; grep -rn 'VERSION\|version_code\|KSU_VERSION' "$D/kernel" 2>/dev/null | head -10
+          fi
+      - name: Dump build configs
+        run: |
+          D=arch/arm64/configs/vendor
+          echo "===== ls $D ====="; ls -la "$D" 2>/dev/null
+          echo "===== ls $D/samsung ====="; ls -la "$D/samsung" 2>/dev/null
+          echo "===== kona-not_defconfig KSU/SUSFS/IKCONFIG/LOCALVERSION ====="
+          grep -nE 'KSU|SUSFS|IKCONFIG|LOCALVERSION' "$D/kona-not_defconfig" 2>/dev/null
+          echo "===== x1q.config (full) ====="
+          cat "$D/samsung/x1q.config" 2>/dev/null
+          echo "===== debugfs.config ====="
+          cat "$D/debugfs.config" 2>/dev/null
